@@ -1,13 +1,22 @@
-name: Windows Cloud RDP
+name: Windows Cloud RDP (16GB RAM / SSD)
 
 on:
   workflow_dispatch:
     inputs:
-      ngrok_token:
-        description: 'Ngrok Auth Token (Get free at https://dashboard.ngrok.com/get-started/your-authtoken)'
+      tunnel_provider:
+        description: 'Select Tunnel Provider'
         required: true
+        default: 'ngrok'
+        type: choice
+        options:
+          - ngrok
+          - cloudflared
+      ngrok_token:
+        description: 'Ngrok Auth Token (Required if using Ngrok - get free at dashboard.ngrok.com)'
+        required: false
+        default: ''
         type: string
-      region:
+      ngrok_region:
         description: 'Ngrok Region (us, eu, ap, au, sa, jp, in)'
         required: false
         default: 'us'
@@ -20,22 +29,11 @@ on:
 
 jobs:
   build:
-    name: Start Windows RDP
+    name: Launch Windows Cloud VM
     runs-on: windows-latest
     timeout-minutes: 360
 
     steps:
-      - name: Download & Extract Ngrok
-        shell: powershell
-        run: |
-          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-          Expand-Archive ngrok.zip -DestinationPath C:\Windows\System32
-
-      - name: Authenticate Ngrok
-        shell: powershell
-        run: |
-          ngrok config add-authtoken "${{ github.event.inputs.ngrok_token }}"
-
       - name: Enable Windows Remote Desktop (RDP)
         shell: powershell
         run: |
@@ -50,15 +48,24 @@ jobs:
           net user /add admin "${{ github.event.inputs.admin_password }}"
           net localgroup administrators admin /add
 
-      - name: Start Ngrok RDP Tunnel
+      - name: Start Cloudflared Tunnel (If selected)
+        if: ${{ github.event.inputs.tunnel_provider == 'cloudflared' }}
         shell: powershell
         run: |
-          Start-Process ngrok -ArgumentList "tcp 3389 --region ${{ github.event.inputs.region }}"
-          Start-Sleep -Seconds 6
+          Invoke-WebRequest -Uri https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -OutFile C:\Windows\System32\cloudflared.exe
+          Start-Process cloudflared -ArgumentList "tunnel --url tcp://localhost:3389" -RedirectStandardError "cloudflared.log"
+          Start-Sleep -Seconds 8
+          Get-Content "cloudflared.log" | Select-String "trycloudflare.com"
 
-      - name: Display Connection Credentials
+      - name: Start Ngrok Tunnel (If selected)
+        if: ${{ github.event.inputs.tunnel_provider == 'ngrok' }}
         shell: powershell
         run: |
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+          Expand-Archive ngrok.zip -DestinationPath C:\Windows\System32
+          ngrok config add-authtoken "${{ github.event.inputs.ngrok_token }}"
+          Start-Process ngrok -ArgumentList "tcp 3389 --region ${{ github.event.inputs.ngrok_region }}"
+          Start-Sleep -Seconds 6
           $response = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
           $tunnelUrl = $response.tunnels[0].public_url -replace "tcp://", ""
           Write-Host "=================================================" -ForegroundColor Green
@@ -74,5 +81,5 @@ jobs:
         run: |
           for ($i = 1; $i -le 355; $i++) {
             Start-Sleep -Seconds 60
-            Write-Host "Keep-Alive: [$(Get-Date -Format 'HH:mm:ss')] VM active ($i min / 360 min elapsed)..."
+            Write-Host "Keep-Alive: [$(Get-Date -Format 'HH:mm:ss')] Cloud VM active ($i min elapsed)..."
           }
