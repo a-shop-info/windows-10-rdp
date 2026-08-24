@@ -1,14 +1,14 @@
 FROM dockur/windows:latest
 
-# Windows 10 Virtualization Configuration for Railway & Docker
+# Environment Configuration for Railway
 ENV VERSION="win10"
-ENV RAM_SIZE="16G"
-ENV CPU_CORES="4"
-ENV DISK_SIZE="556G"
+ENV RAM_SIZE="4G"
+ENV CPU_CORES="2"
+ENV DISK_SIZE="64G"
 ENV LANGUAGE="English"
 ENV USERNAME="admin"
 ENV PASSWORD="root"
 ENV MANUAL="N"
+ENV PORT="8006"
 
-# Expose Web Interface (8006) and RDP Protocol (3389)
 EXPOSE 8006 3389
