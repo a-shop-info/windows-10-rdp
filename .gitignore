@@ -1,0 +1,9 @@
+# Virtual disk and persistent storage
+storage/
+*.iso
+*.img
+*.qcow2
+
+# Logs and system artifacts
+.reticle/
+*.log

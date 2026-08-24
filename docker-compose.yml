@@ -1,0 +1,32 @@
+services:
+  windows:
+    image: dockur/windows:latest
+    container_name: windows_vm
+    environment:
+      # Windows 10
+      VERSION: "${VERSION:-win10}"
+      
+      # 16 GB RAM & 556 GB SSD Storage
+      RAM_SIZE: "${RAM_SIZE:-16G}"
+      CPU_CORES: "${CPU_CORES:-4}"
+      DISK_SIZE: "${DISK_SIZE:-556G}"
+      LANGUAGE: "${LANGUAGE:-English}"
+      
+      # Credentials
+      USERNAME: "${USERNAME:-admin}"
+      PASSWORD: "${PASSWORD:-root}"
+
+      MANUAL: "N"
+    devices:
+      - /dev/kvm:/dev/kvm
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "8006:8006"     # Web GUI / In-browser Viewer
+      - "3389:3389/tcp" # Standard Windows RDP
+      - "3389:3389/udp" # RDP UDP
+    volumes:
+      - ./storage:/storage
+    stop_grace_period: 2m
+    restart: unless-stopped
