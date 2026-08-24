@@ -1,31 +1,7 @@
-name: Windows Cloud RDP
+name: Windows-RDP
 
 on:
   workflow_dispatch:
-    inputs:
-      ngrok_token:
-        description: 'Ngrok Auth Token (Optional if saved in repo secrets)'
-        required: false
-        default: ''
-        type: string
-      ngrok_region:
-        description: 'Ngrok Region'
-        required: false
-        default: 'us'
-        type: choice
-        options:
-          - us
-          - eu
-          - ap
-          - au
-          - sa
-          - jp
-          - in
-      admin_password:
-        description: 'Windows Administrator Password'
-        required: false
-        default: 'root'
-        type: string
 
 jobs:
   build:
@@ -34,29 +10,27 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Enable Windows Remote Desktop (RDP)
+      - name: Setup Ngrok
+        shell: powershell
+        run: |
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+          Expand-Archive ngrok.zip -DestinationPath C:\Windows\System32
+          ngrok config add-authtoken "${{ secrets.NGROK_AUTH_TOKEN }}"
+
+      - name: Enable RDP
+        shell: powershell
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
-
-      - name: Set Administrator Credentials
-        run: |
-          net user runneradmin "${{ inputs.admin_password }}"
-          net user /add admin "${{ inputs.admin_password }}"
+          net user runneradmin "root"
+          net user /add admin "root"
           net localgroup administrators admin /add
 
-      - name: Setup & Start Ngrok Tunnel
-        env:
-          INPUT_TOKEN: ${{ inputs.ngrok_token }}
-          SECRET_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-          REGION: ${{ inputs.ngrok_region }}
+      - name: Start RDP Tunnel
+        shell: powershell
         run: |
-          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
-          Expand-Archive ngrok.zip -DestinationPath C:\Windows\System32
-          $token = if ($env:INPUT_TOKEN) { $env:INPUT_TOKEN } else { $env:SECRET_TOKEN }
-          ngrok config add-authtoken $token
-          Start-Process ngrok -ArgumentList "tcp 3389 --region $env:REGION"
+          Start-Process ngrok -ArgumentList "tcp 3389 --region us"
           Start-Sleep -Seconds 6
           $response = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
           $tunnelUrl = $response.tunnels[0].public_url -replace "tcp://", ""
@@ -65,12 +39,13 @@ jobs:
           Write-Host "=================================================" -ForegroundColor Green
           Write-Host " 🖥️ RDP Address : $tunnelUrl" -ForegroundColor Yellow
           Write-Host " 👤 Username    : runneradmin (or admin)" -ForegroundColor Yellow
-          Write-Host " 🔑 Password    : ${{ inputs.admin_password }}" -ForegroundColor Yellow
+          Write-Host " 🔑 Password    : root" -ForegroundColor Yellow
           Write-Host "=================================================" -ForegroundColor Green
 
-      - name: Keep-Alive Loop (Up to 6 Hours)
+      - name: Keep-Alive Loop
+        shell: powershell
         run: |
           for ($i = 1; $i -le 355; $i++) {
             Start-Sleep -Seconds 60
-            Write-Host "Keep-Alive: [$(Get-Date -Format 'HH:mm:ss')] Cloud VM active ($i min elapsed)..."
+            Write-Host "Keep-Alive: [$(Get-Date -Format 'HH:mm:ss')] VM active ($i min elapsed)..."
           }
