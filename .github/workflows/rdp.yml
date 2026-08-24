@@ -1,0 +1,78 @@
+name: Windows Cloud RDP
+
+on:
+  workflow_dispatch:
+    inputs:
+      ngrok_token:
+        description: 'Ngrok Auth Token (Get free at https://dashboard.ngrok.com/get-started/your-authtoken)'
+        required: true
+        type: string
+      region:
+        description: 'Ngrok Region (us, eu, ap, au, sa, jp, in)'
+        required: false
+        default: 'us'
+        type: string
+      admin_password:
+        description: 'Windows Administrator Password'
+        required: false
+        default: 'Password123!'
+        type: string
+
+jobs:
+  build:
+    name: Start Windows RDP
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Download & Extract Ngrok
+        shell: powershell
+        run: |
+          Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
+          Expand-Archive ngrok.zip -DestinationPath C:\Windows\System32
+
+      - name: Authenticate Ngrok
+        shell: powershell
+        run: |
+          ngrok config add-authtoken "${{ github.event.inputs.ngrok_token }}"
+
+      - name: Enable Windows Remote Desktop (RDP)
+        shell: powershell
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
+
+      - name: Set Administrator Credentials
+        shell: powershell
+        run: |
+          net user runneradmin "${{ github.event.inputs.admin_password }}"
+          net user /add admin "${{ github.event.inputs.admin_password }}"
+          net localgroup administrators admin /add
+
+      - name: Start Ngrok RDP Tunnel
+        shell: powershell
+        run: |
+          Start-Process ngrok -ArgumentList "tcp 3389 --region ${{ github.event.inputs.region }}"
+          Start-Sleep -Seconds 6
+
+      - name: Display Connection Credentials
+        shell: powershell
+        run: |
+          $response = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
+          $tunnelUrl = $response.tunnels[0].public_url -replace "tcp://", ""
+          Write-Host "=================================================" -ForegroundColor Green
+          Write-Host "   🎉 WINDOWS CLOUD RDP IS READY TO CONNECT!" -ForegroundColor Green
+          Write-Host "=================================================" -ForegroundColor Green
+          Write-Host " 🖥️ RDP Address : $tunnelUrl" -ForegroundColor Yellow
+          Write-Host " 👤 Username    : runneradmin (or admin)" -ForegroundColor Yellow
+          Write-Host " 🔑 Password    : ${{ github.event.inputs.admin_password }}" -ForegroundColor Yellow
+          Write-Host "=================================================" -ForegroundColor Green
+
+      - name: Keep-Alive Loop (Up to 6 Hours)
+        shell: powershell
+        run: |
+          for ($i = 1; $i -le 355; $i++) {
+            Start-Sleep -Seconds 60
+            Write-Host "Keep-Alive: [$(Get-Date -Format 'HH:mm:ss')] VM active ($i min / 360 min elapsed)..."
+          }

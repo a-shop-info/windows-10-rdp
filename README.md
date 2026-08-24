@@ -1,60 +1,36 @@
-# 🖥️ Windows 10 Virtualization & RDP (Docker & Railway)
+# 🖥️ Windows Virtualization & Cloud RDP
 
-Deploy a virtualized **Windows 10** instance (16 GB RAM / 556 GB SSD) with native **Remote Desktop (RDP)** and **In-Browser Web Viewer** support.
-
----
-
-## 📋 System Specifications
-
-| Specification | Configured Value |
-| :--- | :--- |
-| **OS Version** | **Windows 10** (`win10`) |
-| **RAM** | **16 GB** |
-| **Storage (SSD)** | **556 GB** |
-| **CPU Cores** | **4 Cores** |
-| **Username** | `admin` |
-| **Password** | `root` |
+Run high-performance Windows virtual machines locally or in the cloud for free with full administrative access.
 
 ---
 
-## ☁️ Deploy on Railway (railway.com)
+## ⚡ Option 1: Free Dedicated Cloud Windows VM (GitHub Actions)
 
-1. Push this folder to your GitHub repository:
-   ```bash
-   git init
-   git add .
-   git commit -m "Windows 10 16GB 556GB SSD Setup"
-   git branch -M main
-   git remote add origin <YOUR_GITHUB_REPO_URL>
-   git push -u origin main
-   ```
-2. Open **[Railway](https://railway.com)** → **New Project** → **Deploy from GitHub repo**.
-3. Under your service **Settings**, set public port to **`8006`**.
-4. Open the generated Railway URL (e.g. `https://your-service.up.railway.app`) in your browser to view your Windows 10 desktop.
+Get a **fast cloud Windows machine (16 GB RAM, 4 vCPUs, SSD)** with full hardware virtualization:
+
+### How to Start:
+1. Open your repository on GitHub: **[`https://github.com/a-shop-info/windows-10-rdp`](https://github.com/a-shop-info/windows-10-rdp)**
+2. Click the **Actions** tab at the top.
+3. Select **Windows Cloud RDP** in the left sidebar.
+4. Click **Run workflow**:
+   * **Ngrok Auth Token**: Paste your token from [dashboard.ngrok.com](https://dashboard.ngrok.com/get-started/your-authtoken) (Free account)
+   * **Region**: Select your closest region (`us`, `eu`, `ap`, `in`, `jp`, etc.)
+   * **Password**: Set your desired password (e.g. `Password123!`)
+5. Click **Run workflow**.
+6. Open the running job logs under **Display Connection Credentials** to get your:
+   * **RDP Address**: `0.tcp.ngrok.io:xxxxx`
+   * **Username**: `runneradmin` (or `admin`)
+   * **Password**: Your set password
 
 ---
 
-## 💻 Run Locally (Docker)
+## 💻 Option 2: Run Locally (Docker)
 
-### 1. Launch Container
+If running on your local machine with Docker:
+
 ```bash
 docker compose up -d
 ```
 
-### 2. Check Logs / Installation Progress
-```bash
-docker compose logs -f
-```
-
----
-
-## 🔌 Connection Methods
-
-### 1. In-Browser Web UI
-- **Local**: [http://localhost:8006](http://localhost:8006)
-- **Railway**: `https://<your-app>.up.railway.app`
-
-### 2. Microsoft Remote Desktop (RDP / mstsc)
-- **Address**: `localhost:3389` (or `<HOST_IP>:3389`)
-- **Username**: `admin`
-- **Password**: `root`
+- **Web Browser Viewer**: [http://localhost:8006](http://localhost:8006)
+- **RDP Client**: `localhost:3389` (`admin` / `root`)
