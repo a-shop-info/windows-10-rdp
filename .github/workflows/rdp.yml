@@ -1,30 +1,30 @@
-name: Windows Cloud RDP (16GB RAM / SSD)
+name: Windows Cloud RDP
 
 on:
   workflow_dispatch:
     inputs:
-      tunnel_provider:
-        description: 'Select Tunnel Provider'
-        required: true
-        default: 'ngrok'
-        type: choice
-        options:
-          - ngrok
-          - cloudflared
       ngrok_token:
-        description: 'Ngrok Auth Token (Required if using Ngrok - get free at dashboard.ngrok.com)'
+        description: 'Ngrok Auth Token (Optional if saved in repo secrets)'
         required: false
         default: ''
         type: string
       ngrok_region:
-        description: 'Ngrok Region (us, eu, ap, au, sa, jp, in)'
+        description: 'Ngrok Region'
         required: false
         default: 'us'
-        type: string
+        type: choice
+        options:
+          - us
+          - eu
+          - ap
+          - au
+          - sa
+          - jp
+          - in
       admin_password:
         description: 'Windows Administrator Password'
         required: false
-        default: 'Password123!'
+        default: 'root'
         type: string
 
 jobs:
@@ -35,36 +35,28 @@ jobs:
 
     steps:
       - name: Enable Windows Remote Desktop (RDP)
-        shell: powershell
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 0
 
       - name: Set Administrator Credentials
-        shell: powershell
         run: |
-          net user runneradmin "${{ github.event.inputs.admin_password }}"
-          net user /add admin "${{ github.event.inputs.admin_password }}"
+          net user runneradmin "${{ inputs.admin_password }}"
+          net user /add admin "${{ inputs.admin_password }}"
           net localgroup administrators admin /add
 
-      - name: Start Cloudflared Tunnel (If selected)
-        if: ${{ github.event.inputs.tunnel_provider == 'cloudflared' }}
-        shell: powershell
-        run: |
-          Invoke-WebRequest -Uri https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe -OutFile C:\Windows\System32\cloudflared.exe
-          Start-Process cloudflared -ArgumentList "tunnel --url tcp://localhost:3389" -RedirectStandardError "cloudflared.log"
-          Start-Sleep -Seconds 8
-          Get-Content "cloudflared.log" | Select-String "trycloudflare.com"
-
-      - name: Start Ngrok Tunnel (If selected)
-        if: ${{ github.event.inputs.tunnel_provider == 'ngrok' }}
-        shell: powershell
+      - name: Setup & Start Ngrok Tunnel
+        env:
+          INPUT_TOKEN: ${{ inputs.ngrok_token }}
+          SECRET_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          REGION: ${{ inputs.ngrok_region }}
         run: |
           Invoke-WebRequest https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip -OutFile ngrok.zip
           Expand-Archive ngrok.zip -DestinationPath C:\Windows\System32
-          ngrok config add-authtoken "${{ github.event.inputs.ngrok_token }}"
-          Start-Process ngrok -ArgumentList "tcp 3389 --region ${{ github.event.inputs.ngrok_region }}"
+          $token = if ($env:INPUT_TOKEN) { $env:INPUT_TOKEN } else { $env:SECRET_TOKEN }
+          ngrok config add-authtoken $token
+          Start-Process ngrok -ArgumentList "tcp 3389 --region $env:REGION"
           Start-Sleep -Seconds 6
           $response = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
           $tunnelUrl = $response.tunnels[0].public_url -replace "tcp://", ""
@@ -73,11 +65,10 @@ jobs:
           Write-Host "=================================================" -ForegroundColor Green
           Write-Host " 🖥️ RDP Address : $tunnelUrl" -ForegroundColor Yellow
           Write-Host " 👤 Username    : runneradmin (or admin)" -ForegroundColor Yellow
-          Write-Host " 🔑 Password    : ${{ github.event.inputs.admin_password }}" -ForegroundColor Yellow
+          Write-Host " 🔑 Password    : ${{ inputs.admin_password }}" -ForegroundColor Yellow
           Write-Host "=================================================" -ForegroundColor Green
 
       - name: Keep-Alive Loop (Up to 6 Hours)
-        shell: powershell
         run: |
           for ($i = 1; $i -le 355; $i++) {
             Start-Sleep -Seconds 60
