@@ -1,14 +1,15 @@
 FROM dockurr/windows:latest
 
-# Create /storage directory with write permissions required by dockurr/windows
-RUN mkdir -p /storage && chmod 777 /storage
+# Ensure /storage and /storage/tmp exist with full permissions
+RUN mkdir -p /storage/tmp && chmod 777 /storage/tmp
 
-# Environment Configuration for Railway & Cloud deployment
-ENV VERSION="win10"
+# Route temp download files directly to persistent storage volume
+ENV TMPDIR="/storage/tmp"
+ENV VERSION="xp"
 ENV KVM="N"
-ENV RAM_SIZE="4G"
+ENV RAM_SIZE="512M"
 ENV CPU_CORES="2"
-ENV DISK_SIZE="32G"
+ENV DISK_SIZE="10G"
 ENV LANGUAGE="English"
 ENV USERNAME="admin"
 ENV PASSWORD="root"
