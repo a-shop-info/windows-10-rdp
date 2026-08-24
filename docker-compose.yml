@@ -1,12 +1,12 @@
 services:
   windows:
-    image: dockur/windows:latest
+    image: dockurr/windows:latest
     container_name: windows_vm
     environment:
       # Windows 10
       VERSION: "${VERSION:-win10}"
       
-      # 16 GB RAM & 556 GB SSD Storage
+      # 16 GB RAM & 556 GB SSD Storage (Local)
       RAM_SIZE: "${RAM_SIZE:-16G}"
       CPU_CORES: "${CPU_CORES:-4}"
       DISK_SIZE: "${DISK_SIZE:-556G}"

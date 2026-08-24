@@ -1,4 +1,4 @@
-FROM dockur/windows:latest
+FROM dockurr/windows:latest
 
 # Environment Configuration for Railway
 ENV VERSION="win10"
